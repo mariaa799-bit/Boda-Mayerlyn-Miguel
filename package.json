@@ -1,0 +1,22 @@
+{
+  "name": "mayerlyn-miguel-wedding",
+  "private": true,
+  "scripts": {
+    "dev": "",
+    "build": "next build --webpack",
+    "dev:next": "next dev --hostname 0.0.0.0"
+  },
+  "dependencies": {
+    "next": "^16.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "framer-motion": "^12.0.0",
+    "@fontsource/great-vibes": "^5.2.0",
+    "@fontsource/cormorant-garamond": "^5.2.0",
+    "@fontsource/cinzel": "^5.2.0"
+  },
+  "devDependencies": {
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/postcss": "^4.0.0"
+  }
+}
