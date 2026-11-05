@@ -30,19 +30,19 @@ export default function Wedding({invitation}){
  updateAttendance();
  const submit=async (event)=>{
    event.preventDefault();
-   if(button.disabled || !form.reportValidity())return;
+   if(button.disabled)return; if(!form.reportValidity()){status.textContent='Revisa los campos obligatorios antes de confirmar.';return;}
    const data=new FormData(form);
    const familyName=String(data.get('familyName')||'').trim();
    const attendance=String(data.get('attendance')||'yes');
    const side=String(data.get('side')||'');
    const guestCount=attendance==='yes'?Number(countInput.value):0;
    const attendees=attendance==='yes'?[...guestNames.querySelectorAll('input')].map(el=>el.value.trim()):[];
-   if(!familyName || !side || (attendance==='yes' && (attendees.length!==guestCount || attendees.some(name=>name.split(/\\s+/).length<2)))){status.textContent='Completa el nombre de la familia y el nombre y apellido de cada asistente.';return}
+   if(!familyName || !side || (attendance==='yes' && (attendees.length!==guestCount || attendees.some(name=>name.split(/\s+/).length<2)))){status.textContent='Completa el nombre de la familia y el nombre y apellido de cada asistente.';return}
    button.disabled=true;
    status.textContent='Guardando tu confirmación…';
    try{
      const firstGuest=attendees[0]||familyName;
-     const pieces=firstGuest.split(/\\s+/);
+     const pieces=firstGuest.split(/\s+/);
      const firstName=pieces.shift()||familyName;
      const lastName=pieces.join(' ')||familyName;
      const payload=new URLSearchParams({firstName,lastName,side,familyName,attendance,guestCount:String(guestCount),attendees:JSON.stringify(attendees)});
