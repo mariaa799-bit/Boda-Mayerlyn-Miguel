@@ -19,41 +19,44 @@ export default function Wedding({invitation}){
  const status=container.querySelector('#rsvpStatus');
  const success=container.querySelector('#rsvpSuccess');
  const whatsApp=container.querySelector('#rsvpWhatsApp');
+ const countInput=form.querySelector('#guestCount');
+ const guestNames=form.querySelector('#guestNames');
+ const attendingFields=form.querySelector('#attendingFields');
+ const attendanceInputs=[...form.querySelectorAll('input[name="attendance"]')];
+ const renderGuests=()=>{const count=Math.max(1,Math.min(50,Number(countInput.value)||1));countInput.value=String(count);const previous=[...guestNames.querySelectorAll('input')].map(el=>el.value);guestNames.replaceChildren();for(let i=0;i<count;i++){const label=document.createElement('label');label.htmlFor='guestName'+(i+1);label.textContent='Nombre y apellido del asistente '+(i+1);const input=document.createElement('input');input.type='text';input.id=label.htmlFor;input.name='guestName'+(i+1);input.autocomplete='name';input.required=true;input.placeholder='Nombre y apellido';input.value=previous[i]||'';guestNames.append(label,input)}};
+ const updateAttendance=()=>{const yes=form.querySelector('input[name="attendance"]:checked')?.value!=='no';attendingFields.hidden=!yes;countInput.required=yes;guestNames.querySelectorAll('input').forEach(input=>{input.required=yes})};
+ countInput.addEventListener('change',renderGuests);
+ attendanceInputs.forEach(input=>input.addEventListener('change',updateAttendance));
+ updateAttendance();
  const submit=async (event)=>{
    event.preventDefault();
    if(button.disabled || !form.reportValidity())return;
    const data=new FormData(form);
-   const firstName=String(data.get('firstName') || '').trim();
-   const lastName=String(data.get('lastName') || '').trim();
-   const side=String(data.get('side') || '');
-   if(!firstName || !lastName || !side){
-     status.textContent='Completa tu nombre, apellido y de parte de quién vienes.';
-     return;
-   }
+   const familyName=String(data.get('familyName')||'').trim();
+   const attendance=String(data.get('attendance')||'yes');
+   const side=String(data.get('side')||'');
+   const guestCount=attendance==='yes'?Number(countInput.value):0;
+   const attendees=attendance==='yes'?[...guestNames.querySelectorAll('input')].map(el=>el.value.trim()):[];
+   if(!familyName || !side || (attendance==='yes' && (attendees.length!==guestCount || attendees.some(name=>name.split(/\\s+/).length<2)))){status.textContent='Completa el nombre de la familia y el nombre y apellido de cada asistente.';return}
    button.disabled=true;
    status.textContent='Guardando tu confirmación…';
    try{
-     const response=await fetch('https://script.google.com/macros/s/AKfycbwdYO_dQ83-vIcBjhtSUoPuGpO1EUSjvs0W9k5K_CIZyfqydH3fXi4q7TzHB9Yw86Bv/exec',{
-       method:'POST',
-       credentials:'omit',
-       body:new URLSearchParams({firstName,lastName,side}),
-       signal:AbortSignal.timeout(20000),
-     });
+     const firstGuest=attendees[0]||familyName;
+     const pieces=firstGuest.split(/\\s+/);
+     const firstName=pieces.shift()||familyName;
+     const lastName=pieces.join(' ')||familyName;
+     const payload=new URLSearchParams({firstName,lastName,side,familyName,attendance,guestCount:String(guestCount),attendees:JSON.stringify(attendees)});
+     const response=await fetch('https://script.google.com/macros/s/AKfycbwdYO_dQ83-vIcBjhtSUoPuGpO1EUSjvs0W9k5K_CIZyfqydH3fXi4q7TzHB9Yw86Bv/exec',{method:'POST',credentials:'omit',body:payload,signal:AbortSignal.timeout(20000)});
      if(!response.ok || (await response.json()).ok!==true)throw new Error('RSVP not saved');
-     const message='Hola, Mayerlyn. Soy '+firstName+' '+lastName+'. ¡Qué alegría acompañarlos en su boda! Les deseo lo mejor en esta nueva etapa. 🤍';
+     const message='Hola, Mayerlyn. Somos '+familyName+'. '+(attendance==='yes'?'Confirmamos '+guestCount+' persona(s) para su boda.':'Lamentablemente no podremos asistir.')+' ¡Les deseamos muchas bendiciones! 🤍';
      whatsApp.href='https://wa.me/584120705638?text='+encodeURIComponent(message);
-     form.style.display='none';
-     success.hidden=false;
-     success.style.removeProperty('display');
-     success.focus();
-   }catch{
-     status.textContent='No pudimos verificar tu confirmación. Inténtalo de nuevo.';
-     button.disabled=false;
-   }
+     success.querySelector('p').textContent=attendance==='yes'?'¡Tu asistencia ha sido confirmada!':'Hemos registrado tu respuesta. ¡Gracias por avisarnos!';
+     form.style.display='none';success.hidden=false;success.style.removeProperty('display');success.focus();
+   }catch{status.textContent='No pudimos verificar tu confirmación. Inténtalo de nuevo.';button.disabled=false}
  };
  form.addEventListener('submit',submit);
  const update=()=>{const d=Math.max(0,new Date('2026-12-29T18:00:00-04:00')-new Date());const parts=[[Math.floor(d/864e5),'días'],[Math.floor(d%864e5/36e5),'horas'],[Math.floor(d%36e5/6e4),'min'],[Math.floor(d%6e4/1000),'seg']];container.querySelector('#countdown').innerHTML=parts.map(([n,l])=>`<div class="count-box"><b>${String(n).padStart(2,'0')}</b><small>${l}</small></div>`).join('')};update();const interval=setInterval(update,1000);
- const observer=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in-view');observer.unobserve(e.target)}}),{threshold:.05});container.querySelectorAll('.card').forEach(c=>observer.observe(c));return()=>{form.removeEventListener('submit',submit);clearInterval(interval);observer.disconnect()}},[phase]);
+ const observer=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in-view');observer.unobserve(e.target)}}),{threshold:.05});container.querySelectorAll('.card').forEach(c=>observer.observe(c));return()=>{form.removeEventListener('submit',submit);countInput.removeEventListener('change',renderGuests);attendanceInputs.forEach(input=>input.removeEventListener('change',updateAttendance));clearInterval(interval);observer.disconnect()}},[phase]);
  const opening=phase!=='closed';const showCinema=phase==='cinema';
  return <><audio ref={musicRef} src="/assets/musica-invitacion.m4a" preload="auto" loop onPause={()=>setMusicPlaying(false)} onPlay={()=>setMusicPlaying(true)} />{opening&&<button className="music-control" type="button" onClick={toggleMusic} aria-label={musicPlaying?'Pausar música':'Reproducir música'} aria-pressed={musicPlaying}><span aria-hidden="true" className="music-icon">{musicPlaying?'♫':'♪'}</span><span>{musicPlaying?'Pausar música':'Activar música'}</span></button>}<AnimatePresence onExitComplete={()=>{if(phase==='leaving')setPhase('full')}}>{phase!=='full'&&phase!=='leaving'&&<motion.section className={`cinematic-intro ${opening?'is-opening':''}`} key="intro" exit={{y:reduced?0:'-100svh',opacity:1,transition:{duration:reduced?.01:.85,ease}}} aria-label="Invitación de boda">
  <motion.div aria-hidden={opening} className="intro-heading" animate={{opacity:opening?0:1}} transition={{duration:.2}}><p>Tenemos una invitación para ti</p></motion.div>
